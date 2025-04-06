@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
-import { FaEdit, FaTrash } from 'react-icons/fa'
+import { FaEdit, FaTrash, FaCheck } from 'react-icons/fa'
 import Header from './components/Header'
 import Footer from './components/Footer'
 
 function App() {
   const [todos, setTodos] = useState([])
   const [newTodo, setNewTodo] = useState('')
-  const [editingTodo, setEditingTodo] = useState(null)
+  const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
 
-  const API_URL = 'http://localhost:5000/api/todos'
+  const API_BASE_URL = 'https://todo-backend-qqex.onrender.com/api/todos'
 
   useEffect(() => {
     fetchTodos()
@@ -17,7 +17,7 @@ function App() {
 
   const fetchTodos = async () => {
     try {
-      const response = await fetch(API_URL)
+      const response = await fetch(API_BASE_URL)
       const data = await response.json()
       setTodos(data)
     } catch (error) {
@@ -30,15 +30,12 @@ function App() {
     if (!newTodo.trim()) return
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(API_BASE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          text: newTodo,
-          completed: false
-        }),
+        body: JSON.stringify({ text: newTodo }),
       })
       const data = await response.json()
       setTodos([...todos, data])
@@ -50,7 +47,7 @@ function App() {
 
   const deleteTodo = async (id) => {
     try {
-      await fetch(`${API_URL}/${id}`, {
+      await fetch(`${API_BASE_URL}/${id}`, {
         method: 'DELETE',
       })
       setTodos(todos.filter(todo => todo._id !== id))
@@ -59,44 +56,44 @@ function App() {
     }
   }
 
-  const toggleComplete = async (id) => {
+  const toggleComplete = async (id, completed) => {
     try {
-      const todo = todos.find(t => t._id === id)
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          completed: !todo.completed
-        }),
+        body: JSON.stringify({ completed: !completed }),
       })
-      const data = await response.json()
-      setTodos(todos.map(t => t._id === id ? data : t))
+      const updatedTodo = await response.json()
+      setTodos(todos.map(todo => 
+        todo._id === id ? updatedTodo : todo
+      ))
     } catch (error) {
       console.error('Error updating todo:', error)
     }
   }
 
   const startEdit = (todo) => {
-    setEditingTodo(todo._id)
+    setEditingId(todo._id)
     setEditText(todo.text)
   }
 
   const saveEdit = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          text: editText
-        }),
+        body: JSON.stringify({ text: editText }),
       })
-      const data = await response.json()
-      setTodos(todos.map(t => t._id === id ? data : t))
-      setEditingTodo(null)
+      const updatedTodo = await response.json()
+      setTodos(todos.map(todo => 
+        todo._id === id ? updatedTodo : todo
+      ))
+      setEditingId(null)
+      setEditText('')
     } catch (error) {
       console.error('Error updating todo:', error)
     }
@@ -138,19 +135,27 @@ function App() {
                   <input
                     type="checkbox"
                     checked={todo.completed}
-                    onChange={() => toggleComplete(todo._id)}
+                    onChange={(e) => toggleComplete(todo._id, todo.completed)}
                     className="h-5 w-5 rounded border-gray-300 focus:ring-blue-500"
                   />
-                  {editingTodo === todo._id ? (
-                    <input
-                      type="text"
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      onBlur={() => saveEdit(todo._id)}
-                      onKeyPress={(e) => e.key === 'Enter' && saveEdit(todo._id)}
-                      className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      autoFocus
-                    />
+                  {editingId === todo._id ? (
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          saveEdit(todo._id)
+                        }}
+                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none"
+                      >
+                        Save
+                      </button>
+                    </div>
                   ) : (
                     <span className={`${todo.completed ? 'line-through text-gray-500' : ''}`}>
                       {todo.text}
@@ -158,16 +163,22 @@ function App() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  {editingTodo !== todo._id && (
+                  {editingId !== todo._id && (
                     <button
-                      onClick={() => startEdit(todo)}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        startEdit(todo)
+                      }}
                       className="p-2 text-blue-500 hover:bg-blue-50 rounded transition-colors"
                     >
                       <FaEdit />
                     </button>
                   )}
                   <button
-                    onClick={() => deleteTodo(todo._id)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      deleteTodo(todo._id)
+                    }}
                     className="p-2 text-red-500 hover:bg-red-50 rounded transition-colors"
                   >
                     <FaTrash />
